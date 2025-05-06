@@ -88,6 +88,12 @@ export default function HomeScreen() {
 
     const handleFileSelect = async (file: { id: any; name: any; mimeType: any }) => {
         try {
+            if (file.mimeType === 'application/vnd.google-apps.folder') {
+                console.log(`📁 Folder selected: ${file.name}`);
+                await downloadFolderContents(file.id, file.name);
+                return;
+            }
+
             const isGoogleDoc = file.mimeType.startsWith("application/vnd.google-apps");
 
             const downloadUrl = isGoogleDoc
@@ -111,6 +117,31 @@ export default function HomeScreen() {
             console.log(`✅ File downloaded in browser: ${file.name}`);
         } catch (err) {
             console.error("Error downloading file:", err);
+        }
+    };
+
+    const downloadFolderContents = async (folderId: string, folderName: string) => {
+        try {
+            const res = await fetch(
+                `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&fields=files(id,name,mimeType,size)`,
+                {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                }
+            );
+    
+            const json = await res.json();
+            const files = json.files;
+    
+            if (!files || files.length === 0) {
+                alert("📂 This folder is empty.");
+                return;
+            }
+    
+            for (const file of files) {
+                await handleFileSelect(file); // Recursively download each file (including subfolders if needed)
+            }
+        } catch (err) {
+            console.error("Error listing folder contents:", err);
         }
     };
 
